@@ -3,25 +3,36 @@ import { defineStore } from 'pinia';
 import { useLocalStorage } from '@vueuse/core';
 import { FrontendEnvironment } from '@backend/api-front/routes/env';
 
-export const getSystemStore = defineStore('counter', () => {
-  const apiJwtToken = useLocalStorage('apiJwtToken', '');
+export const getSystemStore = defineStore('system', () => {
+  const apiJwtToken = useLocalStorage<string>('apiJwtToken', '');
 
   const frontendEnvironmentQueried = ref(false);
-  const frontendEnvironment: Ref<FrontendEnvironment> = ref({});
-  const cognitoLoginUrlWithRedirect = computed(() => {
-    let ret =
-      frontendEnvironment.value.cognitoLoginUrl +
-      '&redirect_uri=' +
-      encodeURIComponent(window.location.origin) +
-      '/login_callback';
 
-    const urlSplitByQuery = window.location.href.split('?');
-    if (urlSplitByQuery.length > 1) {
-      // Have to double encode because Cognito decodes when sending this back and we need it preserved
-      ret += '&state=' + encodeURIComponent(encodeURIComponent(urlSplitByQuery[1]));
+  // Explicit typed default prevents runtime/TS issues
+  const frontendEnvironment: Ref<FrontendEnvironment> = ref({
+    cognitoLoginUrl: '',
+  } as FrontendEnvironment);
+
+  const cognitoLoginUrlWithRedirect = computed(() => {
+    const env = frontendEnvironment.value;
+    const baseUrl = env.cognitoLoginUrl || '';
+
+    const redirect = encodeURIComponent(`${window.location.origin}/login_callback`);
+    let fullUrl = `${baseUrl}&redirect_uri=${redirect}`;
+
+    // Append state when query params exist
+    const query = window.location.search.replace('?', '');
+    if (query) {
+      fullUrl += '&state=' + encodeURIComponent(encodeURIComponent(query));
     }
 
-    return ret;
+    return fullUrl;
   });
-  return { apiJwtToken, frontendEnvironmentQueried, frontendEnvironment, cognitoLoginUrlWithRedirect };
+
+  return {
+    apiJwtToken,
+    frontendEnvironmentQueried,
+    frontendEnvironment,
+    cognitoLoginUrlWithRedirect,
+  };
 });
